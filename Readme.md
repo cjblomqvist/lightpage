@@ -2,7 +2,7 @@
   Tiny ~900 byte Express-inspired client-side router.
   
   Based upon page.js and simplified to only contain manually 
-  invoced routers with callbacks. Simplified in order to work
+  invoked routers with callbacks. Simplified in order to work
   better with DerbyJS - but could also be used in other cases
   when the automatic routing is not desired.
 
