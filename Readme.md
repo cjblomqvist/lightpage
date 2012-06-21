@@ -1,7 +1,10 @@
 
- ![page router logo](http://f.cl.ly/items/3i3n001d0s1Q031r2q1P/page.png)
-
-  Tiny ~1200 byte Express-inspired client-side router.
+  Tiny ~900 byte Express-inspired client-side router.
+  
+  Based upon page.js and simplified to only contain manually 
+  invoced routers with callbacks. Simplified in order to work
+  better with DerbyJS - but could also be used in other cases
+  when the automatic routing is not desired.
 
 ```js
 page('/', index)
@@ -9,32 +12,7 @@ page('/user/:user', show)
 page('/user/:user/edit', edit)
 page('/user/:user/album', album)
 page('/user/:user/album/sort', sort)
-page('*', notfound)
-page()
 ```
-
-## Running examples
-
-  To run examples do the following to install dev dependencies an run the example server:
-
-    $ npm install
-    $ node examples
-    $ open http://localhost:3000
-
- Currently we have examples for:
- 
-   - `basic` minimal application showing basic routing
-   - `notfound` similar to `basic` with single-page 404 support
-   - `album` showing pagination and external links
-   - `profile` simple user profiles
-   - `query-string` shows how you can integrate plugins using the router
-   - `state` illustrates how the history state may be used to cache data
-   - `server` illustrates how to use the dispatch option to server initial content
-   - `chrome` Google Chrome style administration interface
-
-  __NOTE__: keep in mind these examples do not use jQuery or similar, so
-  portions of the examples may be relatively verbose, though they're not
-  directly related to page.js in any way.
 
 ## API
 
@@ -52,58 +30,14 @@ page('*', notfound)
   Links that are not of the same origin are disregarded
   and will not be dispatched.
 
-### page(path)
+### page.process(path)
 
-  Navigate to the given `path`.
-
-```js
-$('.view').click(function(e){
-  page('/user/12')
-  e.preventDefault()
-})
-```
-
-### page.show(path)
-
-  Identical to `page(path)` above.
-
-### page([options])
-
-  Register page's `popstate` / `click` bindings. If you're
-  doing selective binding you'll like want to pass `{ click: false }`
-  to specify this yourself. The following options are available:
-
-  - `click` bind to click events [__true__]
-  - `popstate` bind to popstate [__true__]
-  - `dispatch` perform initial dispatch [true]
-
-  If you wish to load serve initial content
-  from the server you likely will want to
-  set `dispatch` to __false__.
-
-### page.start([options])
-
-  Identical to `page([options])` above.
-
-### page.stop()
-
-  Unbind both the `popstate` and `click` handlers.
+  Process routes based on `path`
 
 ### page.base([path])
 
   Get or set the base `path`. For example if page.js
   is operating within "/blog/*" set the base path to "/blog". 
-
-### Context#save()
-
-  Saves the context using `replaceState()`. For example
-  this is useful for caching HTML or other resources
-  that were loaded for when a user presses "back".
-  
-  Routes are passed `Context` objects, these may
-  be used to share state, for example `ctx.user =`,
-  as well as the history "state" `ctx.state` that
-  the `pushState` API provides.
 
 ## Routing
 
@@ -135,132 +69,37 @@ page('/user/:user', show)
 page('/user/:user/edit', edit)
 ```
 
-  Likewise `*` may be used as catch-alls after all routes
-  acting as a 404 handler, before all routes, in-between and
-  so on. For example:
-
-```js
-page('/user/:user', load, show)
-page('*', function(){
-  $('body').text('Not found!')
-})
-```
-
 ### Default 404 behaviour
 
   By default when a route is not matched,
-  page.js will invoke `page.stop()` to unbind
-  itself, and proceed with redirecting to the
-  location requested. This means you may use
-  page.js with a multi-page application _without_
-  explicitly binding to certain links.
+  lightpage.js will not do anything
 
 ### Working with parameters and contexts
 
-  Much like `request` and `response` objects are
-  passed around in Express, page.js has a single
-  "Context" object. Using the previous examples
-  of `load` and `show` for a user, we can assign
-  arbitrary properties to `ctx` to maintain state
-  between callbacks.
-
-  First to build a `load` function that will load
-  the user for subsequent routes you'll need to
-  access the ":id" passed. You can do this with
-  `ctx.params.NAME` much like Express:
+  Compared to page.js, and Express.js, instead of
+  passing around a "Context" object, only the params
+  are passed to the callbacks, along with the next
+  callback. This is based upon the pattern of routes
+  in DerbyJS.
+  
+  One can for example access params passed in the
+  path, for example by accessingthe ":id" passed. 
+  You can do this with `params.NAME` much like 
+  Express:
 
 ```js
-function load(ctx, next){
-  var id = ctx.params.id
+function load(params, next){
+  var id = params.id
 }
-```
-
-  Then perform some kind of action against the server,
-  assigning the user to `ctx.user` for other routes to
-  utilize. `next()` is then invoked to pass control to
-  the following matching route in sequence, if any.
-
-```js
-function load(ctx, next){
-  var id = ctx.params.id
-  $.getJSON('/user/' + id + '.json', function(user){
-    ctx.user = user
-    next()
-  })
-}
-```
-
-  The "show" function might look something like this,
-  however you may render templates or do anything you
-  want. Note that here `next()` is _not_ invoked, because
-  this is considered the "end point", and no routes
-  will be matched until another link is clicked or
-  `page(path)` is called.
-
-```js
-function show(ctx){
-  $('body')
-    .empty()
-    .append('<h1>' + ctx.user.name + '<h1>');
-}
-```
-
-  Finally using them like so:
-
-```js
-page('/user/:id', load, show)
 ```
 
 ### Working with state
 
-  When working with the `pushState` API,
-  and thus page.js you may optionally provide
-  state objects available when the user navigates
-  the history.
-
-  For example if you had a photo application
-  and you performed a relatively expensive
-  search to populate a list of images,
-  normally when a user clicks "back" in
-  the browser the route would be invoked
-  and the query would be made yet-again.
-
-  Perhaps the route callback looks like this:
-
-```js
-function show(ctx){
-  $.getJSON('/photos', function(images){
-    displayImages(images)
-  })
-}
-```
-
-   You may utilize the history's state
-   object to cache this result, or any
-   other values you wish. This makes it
-   possible to completely omit the query
-   when a user presses back, providing
-   a much nicer experience.
-
-```js
-function show(ctx){
-  if (ctx.state.images) {
-    displayImages(ctx.state.images)
-  } else {
-    $.getJSON('/photos', function(images){
-      ctx.state.images = images
-      ctx.save()
-      displayImages(images)
-    })
-  }
-}
-```
-
-  __NOTE__: `ctx.save()` must be used
-  if the state changes _after_ the first
-  tick (xhr, setTimeout, etc), otherwise
-  it is optional and the state will be
-  saved after dispatching.
+  __NOTE__: Compared to page.js, there are no
+  states that are being passed along. This is due to
+  DerbyJS having excluded this - it's simply easier to
+  access other DerbyJS-specifc state variables 
+  instead.
 
 ### Matching paths
 
@@ -318,36 +157,6 @@ page('/file/:file(*)', loadUser)
 page(/^\/commits\/(\d+)\.\.(\d+)/, loadUser)
 ```
 
-
-## Plugins
-
-  Currently there are no official plugins,
-  however _examples/query-string/query.js_
-  will provide a parsed `ctx.query` object
-  derived from [https://github.com/visionmedia/node-querystring](https://github.com/visionmedia/node-querystring).
-
-  Usage by using "*" to match any path
-  in order to parse the query-string:
-
-```js
-page('*', parse)
-page('/', show)
-page()
-
-function parse(ctx, next) {
-  ctx.query = qs.parse(location.search.slice(1));
-  next();
-}
-
-function show(ctx) {
-  if (Object.keys(ctx.query).length) {
-    document
-      .querySelector('pre')
-      .textContent = JSON.stringify(ctx.query, null, 2);
-  }
-}
-```
-
 ### Running tests
 
 ```
@@ -359,7 +168,7 @@ $ open http://localhost:3000
 
 (The MIT License)
 
-Copyright (c) 2012 TJ Holowaychuk &lt;tj@vision-media.ca&gt;
+Copyright (c) 2012 CJ Blomqvist &lt;kontakt@bbweb.se&gt;
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

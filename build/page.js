@@ -1,11 +1,4 @@
-
 ;(function(){
-
-  /**
-   * Perform initial dispatch.
-   */
-
-  var dispatch = true;
 
   /**
    * Base path.
@@ -14,19 +7,9 @@
   var base = '';
 
   /**
-   * Running flag.
-   */
-
-  var running;
-
-  /**
-   * Register `path` with callback `fn()`,
-   * or route `path`, or `page.start()`.
+   * Register `path` with callback `fn()`
    *
    *   page('/user/:id', load, user);
-   *   page('/user/' + user.id, { some: 'thing' });
-   *   page('/user/' + user.id);
-   *   page();
    *
    * @param {String} path
    * @param {Function} fn...
@@ -34,18 +17,9 @@
    */
 
   function page(path, fn) {
-    // route <path> to <callback ...>
-    if ('function' == typeof fn) {
-      var route = new Route(path);
-      for (var i = 1; i < arguments.length; ++i) {
-        page.callbacks.push(route.middleware(arguments[i]));
-      }
-    // show <path> with [state]
-    } else if ('string' == typeof path) {
-      page.show(path, fn);
-    // start [options]
-    } else {
-      page.start(path);
+    var route = new Route(path);
+    for (var i = 1; i < arguments.length; ++i) {
+      page.callbacks.push(route.middleware(arguments[i]));
     }
   }
 
@@ -68,75 +42,16 @@
   };
 
   /**
-   * Bind with the given `options`.
-   *
-   * Options:
-   *
-   *    - `click` bind to click events [true]
-   *    - `popstate` bind to popstate [true]
-   *    - `dispatch` perform initial dispatch [true]
-   *
-   * @param {Object} options
-   * @api public
-   */
-
-  page.start = function(options){
-    options = options || {};
-    if (running) return;
-    running = true;
-    if (false === options.dispatch) dispatch = false;
-    if (false !== options.popstate) addEventListener('popstate', onpopstate, false);
-    if (false !== options.click) addEventListener('click', onclick, false);
-    if (!dispatch) return;
-    page.replace(location.pathname, null, true, dispatch);
-  };
-
-  /**
-   * Unbind click and popstate event handlers.
-   *
-   * @api public
-   */
-
-  page.stop = function(){
-    running = false;
-    removeEventListener('click', onclick, false);
-    removeEventListener('popstate', onpopstate, false);
-  };
-
-  /**
-   * Show `path` with optional `state` object.
+   * Process routes based on `path`
    *
    * @param {String} path
-   * @param {Object} state
-   * @return {Context}
    * @api public
    */
 
-  page.show = function(path, state){
-    var ctx = new Context(path, state);
-    page.dispatch(ctx);
-    if (!ctx.unhandled) ctx.pushState();
-    return ctx;
+  page.process = function(path){
+    page.dispatch(new Context(path));
   };
-
-  /**
-   * Replace `path` with optional `state` object.
-   *
-   * @param {String} path
-   * @param {Object} state
-   * @return {Context}
-   * @api public
-   */
-
-  page.replace = function(path, state, init, dispatch){
-    var ctx = new Context(path, state);
-    ctx.init = init;
-    if (null == dispatch) dispatch = true;
-    if (dispatch) page.dispatch(ctx);
-    ctx.save();
-    return ctx;
-  };
-
+  
   /**
    * Dispatch the given `ctx`.
    *
@@ -149,28 +64,11 @@
 
     function next() {
       var fn = page.callbacks[i++];
-      if (!fn) return unhandled(ctx);
-      fn(ctx, next);
+      if (fn) fn(ctx, next);
     }
 
     next();
   };
-
-  /**
-   * Unhandled `ctx`. When it's not the initial
-   * popstate then redirect. If you wish to handle
-   * 404s on your own use `page('*', callback)`.
-   *
-   * @param {Context} ctx
-   * @api private
-   */
-
-  function unhandled(ctx) {
-    if (window.location.pathname == ctx.canonicalPath) return;
-    page.stop();
-    ctx.unhandled = true;
-    window.location = ctx.canonicalPath;
-  }
 
   /**
    * Initialize a new "request" `Context`
@@ -181,35 +79,12 @@
    * @api public
    */
 
-  function Context(path, state) {
+  function Context(path) {
     if ('/' == path[0] && 0 != path.indexOf(base)) path = base + path;
-    this.canonicalPath = path;
     this.path = path.replace(base, '') || '/';
     this.title = document.title;
-    this.state = state || {};
-    this.state.path = path;
     this.params = [];
   }
-
-  /**
-   * Push state.
-   *
-   * @api private
-   */
-
-  Context.prototype.pushState = function(){
-    history.pushState(this.state, this.title, this.canonicalPath);
-  };
-
-  /**
-   * Save the context state.
-   *
-   * @api public
-   */
-
-  Context.prototype.save = function(){
-    history.replaceState(this.state, this.title, this.canonicalPath);
-  };
 
   /**
    * Initialize `Route` with the given HTTP `path`,
@@ -247,7 +122,7 @@
   Route.prototype.middleware = function(fn){
     var self = this;
     return function(ctx, next){
-      if (self.match(ctx.path, ctx.params)) return fn(ctx, next);
+      if (self.match(ctx.path, ctx.params)) return fn(ctx.params, next);
       next();
     }
   };
@@ -326,50 +201,6 @@
       .replace(/\*/g, '(.*)');
     return new RegExp('^' + path + '$', sensitive ? '' : 'i');
   };
-
-  /**
-   * Handle "populate" events.
-   */
-
-  function onpopstate(e) {
-    if (e.state) {
-      var path = e.state.path;
-      page.replace(path, e.state);
-    }
-  }
-
-  /**
-   * Handle "click" events.
-   */
-
-  function onclick(e) {
-    var el = e.target;
-    while (el && 'A' != el.nodeName) el = el.parentNode;
-    if (!el || 'A' != el.nodeName) return;
-    var href = el.href;
-    var path = el.pathname;
-    if (el.hash) return;
-    if (!sameOrigin(href)) return;
-    var orig = path;
-    path = path.replace(base, '');
-    if (base && orig == path) return;
-    e.preventDefault();
-    page.show(orig);
-  }
-
-  /**
-   * Check if `href` is the same origin.
-   */
-
-  function sameOrigin(href) {
-    var origin = location.protocol + '//' + location.hostname;
-    if (location.port) origin += ':' + location.port;
-    return 0 == href.indexOf(origin);
-  }
-
-  /**
-   * Expose `page`.
-   */
 
   if ('undefined' == typeof module) {
     window.page = page;
