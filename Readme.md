@@ -168,7 +168,7 @@ $ open http://localhost:3000
 
 (The MIT License)
 
-Copyright (c) 2012 CJ Blomqvist &lt;kontakt@bbweb.se&gt;
+Copyright (c) 2012 CJ Blomqvist &lt;contakt@bbweb.se&gt;
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
