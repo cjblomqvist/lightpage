@@ -205,7 +205,7 @@
   if( 'undefined' === typeof window ) {
     module.exports = page;
   } else {
-    window.lightpage = page;
+    window.page = page;
   }
 
 })();
