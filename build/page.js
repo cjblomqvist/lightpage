@@ -202,10 +202,11 @@
     return new RegExp('^' + path + '$', sensitive ? '' : 'i');
   };
 
-  if( 'undefined' === typeof window ) {
-    module.exports = page;
-  } else {
-    window.page = page;
+  if( 'undefined' !== typeof window ) {
+    window.lightpage = page;
   }
 
+  if(typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+    module.exports = page;
+  }
 })();
